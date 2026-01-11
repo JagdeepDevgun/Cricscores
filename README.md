@@ -1,139 +1,144 @@
-# Cric Scorer (PHP + SQLite) — VPS-ready
+# CricScore - Cricket Tournament & Live Scoring App
 
-A lightweight cricket scoring web app you can host on any VPS with PHP.
-It supports:
-- Tournaments
-- Teams (unlimited per tournament)
-- Matches
-- Live scoring (ball-by-ball)
-- Overs/balls (legal vs illegal)
-- Run rate
-- Undo last ball
+**CricScore** is a self-hosted, web-based application designed to manage local cricket tournaments. It handles everything from team management and fixture generation to ball-by-ball live scoring and automatic statistics generation.
 
-> MVP note: This starter focuses on **innings 1** scoring (a clean base). You can extend to 2-innings + target easily.
+Built with **PHP** and **SQLite**, it runs easily in a Docker container and functions as a Progressive Web App (PWA) on mobile devices.
 
----
+## 🌟 Features
 
-## 1) Requirements (VPS)
-- PHP 8.1+ recommended (works on PHP 7.4+ too)
-- Extensions:
-  - `pdo_sqlite`
-  - `sqlite3`
-- Web server: Nginx or Apache
+* **Tournament Management:** Organize multiple tournaments, manage points tables, and generate fixtures automatically.
+* **Live Scoring:** Mobile-friendly interface for ball-by-ball scoring (runs, wickets, extras, undo support).
+* **Match Logic:** Handles complex scenarios like Super Overs, DLS (Duckworth-Lewis-Stern) adjustments, and "Man of the Match" selection.
+* **Statistics:** Automatic calculation of player stats (Runs, Strike Rate, Wickets, Economy) and team standings.
+* **Team & Player Management:** detailed profiles, regular player tracking, and team editing.
+* **Offline Capable:** Installs as a PWA for faster access and "app-like" feel on iOS/Android.
+* **Database Tools:** Built-in features for database backup, optimization, and migration.
 
 ---
 
-## 2) Install / Deploy
-### Option A — Nginx + PHP-FPM (Ubuntu/Debian)
-1. Install:
-   - `sudo apt update`
-   - `sudo apt install nginx php-fpm php-sqlite3 -y`
+## 📋 Prerequisites
 
-2. Upload this folder to: `/var/www/cric-scorer`
+* **Docker** and **Docker Compose** installed on your machine.
+* (Optional) A reverse proxy (like Nginx) for SSL if deploying to the web.
 
-3. Nginx site example:
-```
-server {
-  listen 80;
-  server_name YOUR_DOMAIN_OR_IP;
+---
 
-  root /var/www/cric-scorer;
-  index index.php;
+## 🚀 Quick Start (Docker)
 
-  location / {
-    try_files $uri $uri/ /index.php?$query_string;
-  }
+### 1. Project Setup
 
-  location ~ \.php$ {
-    include snippets/fastcgi-php.conf;
-    fastcgi_pass unix:/run/php/php8.2-fpm.sock; # change version if needed
-  }
-}
+Ensure your project folder structure looks like this:
+
+```text
+/cricscore-app
+  ├── api/
+  ├── assets/
+  ├── data/          <-- Database lives here
+  ├── pages/
+  ├── docker-compose.yml
+  ├── Dockerfile
+  ├── index.php
+  ├── init_db.php
+  └── ... (other files)
+
 ```
 
-4. Reload:
-- `sudo nginx -t && sudo systemctl reload nginx`
+### 2. Build and Run
 
-5. Permissions (SQLite file will be created in the project folder):
-- `sudo chown -R www-data:www-data /var/www/cric-scorer`
+Open your terminal in the project root and run:
 
-6. Initialize DB (ONE TIME):
-- Open: `http://YOUR_DOMAIN_OR_IP/init_db.php`
-- Then delete `init_db.php` for safety.
+```bash
+docker compose up -d --build
 
----
+```
 
-### Option B — Apache (Ubuntu/Debian)
-1. Install:
-- `sudo apt update`
-- `sudo apt install apache2 php libapache2-mod-php php-sqlite3 -y`
+### 3. Permissions (Important)
 
-2. Copy to:
-- `/var/www/html/cric-scorer`
+SQLite requires write permissions for the `data` folder so the web server can save scores. Run these commands:
 
-3. Initialize DB:
-- `http://YOUR_DOMAIN_OR_IP/cric-scorer/init_db.php`
-- Then delete `init_db.php`.
+```bash
+# Replace 'cricscore_container_name' with the actual container name from docker-compose
+# (You can check it via 'docker ps')
 
----
+docker exec -it cricscore_web chown -R www-data:www-data /var/www/html/data
+docker exec -it cricscore_web chmod -R 775 /var/www/html/data
 
-## 3) Usage
-1. Open `index.php`
-2. Create tournament
-3. Add teams (unlimited — supports bulk add)
-4. Create match
-5. Start live scoring
+```
+
+### 4. Database Initialization
+
+1. Open your browser and navigate to: `http://localhost:8080/init_db.php` (Check your port in `docker-compose.yml`).
+2. This will create the necessary tables (`tournaments`, `matches`, `balls`, `players`, etc.).
+3. **Security Note:** Once initialized, you should delete or rename `init_db.php` to prevent accidental resets.
 
 ---
 
-## 4) Data / DB
-- SQLite database file is stored at: `cric.db` in the project root.
+## ⚙️ Configuration
+
+The application settings are primarily handled via environment variables in `docker-compose.yml`.
+
+| Variable | Description |
+| --- | --- |
+| `PHP_TZ` | Timezone for match timestamps (e.g., `Asia/Kolkata`). |
+| `SQLITE_PATH` | Path to the DB file (Default: `/var/www/html/data/cricket.db`). |
+
+To change the timezone, edit `docker-compose.yml`:
+
+```yaml
+environment:
+  - PHP_TZ=America/New_York
+
+```
 
 ---
 
-## 5) Security Notes
-- Simple login is included.
-  - Default credentials: **admin / admin123**
-  - Change by setting environment variables before initializing DB:
-    - `ADMIN_USER`
-    - `ADMIN_PASS`
-- Delete `init_db.php` after first run.
+## 📖 Usage Guide
+
+### 1. Starting a Tournament
+
+* Navigate to the **Tournaments** tab.
+* Create a new tournament (e.g., "Winter Cup 2026").
+* Add **Teams** to the tournament.
+* Use the **Fixtures** generator to automatically schedule matches between teams.
+
+### 2. Scoring a Match
+
+* Go to the **Matches** tab and click on a scheduled match.
+* **Toss:** Select who won the toss and their decision.
+* **Playing XI:** Select players for both teams.
+* **Scoring Interface:**
+* Tap runs (0, 1, 2, 3, 4, 6).
+* Mark extras (Wide, No Ball).
+* Record wickets (Bowled, Catch, Run-out).
+* Use the **Undo** button if you make a mistake.
+
+
+
+### 3. Reviewing Stats
+
+* **Points Table:** Automatically updates after every match result.
+* **Player Stats:** Click on a player's name to see their career runs, high scores, and bowling figures.
+* **Match Summary:** View the full scorecard and ball-by-ball commentary for completed matches.
 
 ---
 
-## 6) Next upgrades (ask and I'll implement)
-- 2 innings + target + required RR
-- Batsman/Bowler tracking + full scorecard
-- Points table + NRR UI
-- Export match as PDF/JSON
+## 🛠 Troubleshooting
 
+**"Unable to open database file"**
 
-## Tournament formats
-- Round robin: generates all pairings.
-- Knockout: generates first-round bracket (simple seeding).
+* This is almost always a permission issue. Ensure you ran the `chown` and `chmod` commands listed in step 3 of the Quick Start.
 
-## Points system
-Configurable per tournament at creation: Win/Tie/No Result/Loss.
+**Scores not saving**
 
+* Check if your disk is full or if the `data/` directory is read-only.
 
-## Auto innings end + Super Over
-- Innings auto-ends when: **10 wickets**, **overs limit reached**, or (in chase) **target reached**.
-- If match is tied after Innings 2, app will ask to start a **Super Over**.
-- Super Over uses **1 over per side** (innings 3 & 4). If super over also ties, match stays Tie.
+**PWA not installing**
 
-### DB change
-Delete `cric.db` and re-run `init_db.php`.
+* Ensure you are serving the app over **HTTPS** (or `localhost`). Service Workers (required for PWA) do not work over insecure HTTP connections on remote networks.
 
-### Ball counting note
-If an innings ends exactly at the overs limit (e.g., 20.0), the UI may switch immediately to the next innings. This can look like it ended “one ball early”. A popup now confirms the innings ended AFTER the last ball was counted.
+---
 
-## Update db
-- docker cp cric-scorer:/var/www/html/cric.db ./data/cric_backup.db
-- docker cp ./data/cric_backup.db cric-scorer:/var/www/html/cric.db
-- docker exec cric-scorer chown www-data:www-data /var/www/html/cric.db
-- docker exec cric-scorer chown -R www-data:www-data /var/www/html/
+## 📂 Backup & Maintenance
 
-## Update to Git
-- git add .
-- git commit -m "New update"
-- git push
+* **Backup:** The app has a built-in backup API (`api/backup.php`), or you can simply copy the `.db` file from the `data/` folder.
+* **Optimize:** Occasional running of `api/optimize_db.php` can help keep the SQLite database fast by running a `VACUUM` command.
