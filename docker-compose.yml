@@ -1,0 +1,10 @@
+services:
+  cric-scorer:
+    build: .
+    container_name: cric-scorer
+    ports:
+      - "1995:80"
+    volumes:
+      # Persist ONLY the DB folder
+      - ./data:/var/www/html/data
+    restart: unless-stopped

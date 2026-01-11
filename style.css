@@ -1,0 +1,316 @@
+:root {
+  color-scheme: light;
+  
+  /* --- BACKGROUND: GRAPH PAPER (GRID) --- */
+  --bg-color: #fdfbf7; /* Warm Off-White */
+  --grid-color: rgba(68, 138, 255, 0.15);
+  --bg-pattern: 
+      linear-gradient(var(--grid-color) 1px, transparent 1px),
+      linear-gradient(90deg, var(--grid-color) 1px, transparent 1px);
+  --bg-size: 20px 20px; 
+  
+  /* "Ink" Colors */
+  --ink: #2c3e50;       /* Dark Blue-Grey (Pen Ink) */
+  --ink-light: #7f8c8d; /* Pencil Grey */
+  --paper: #ffffff;
+  
+  /* Pop Accents (Highlighters) */
+  --pop-yellow: #ffeb3b; 
+  --pop-cyan: #00bcd4;   
+  --pop-red: #ff5252;    
+  --pop-green: #00e676;
+  --pop-purple: #ab47bc;
+
+  /* Structural - Hand Drawn Feel */
+  --border: 2px solid var(--ink);
+  --border-radius: 6px; 
+  --shadow-hard: 4px 4px 0px rgba(44, 62, 80, 0.15); 
+}
+
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: 'Outfit', 'Segoe UI', sans-serif;
+  background-color: var(--bg-color);
+  background-image: var(--bg-pattern);
+  background-size: var(--bg-size);
+  color: var(--ink);
+  min-height: 100vh;
+  overflow-x: hidden;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Remove old overlays */
+body::before { display: none; }
+
+.wrap, .home-wrap {
+  max-width: 1000px;
+  margin: 0 auto;
+  padding: 20px;
+  width: 100%;
+}
+
+/* ==========================================================
+   TYPOGRAPHY
+   ========================================================== */
+h1, h2, h3 {
+  color: var(--ink);
+  margin-top: 0;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+h1 {
+  font-weight: 900;
+  font-size: 32px;
+  /* Highlighter Effect */
+  background: linear-gradient(100deg, transparent 10%, var(--pop-yellow) 10%, var(--pop-yellow) 90%, transparent 90%);
+  background-position: 0% 85%;
+  background-repeat: no-repeat;
+  background-size: 100% 35%;
+  display: inline-block;
+  text-shadow: none;
+}
+
+h2 {
+  font-weight: 800;
+  font-size: 22px;
+  border-left: 5px solid var(--pop-cyan);
+  padding-left: 10px;
+}
+
+a { 
+  color: var(--ink); 
+  text-decoration: none; 
+  font-weight: 700;
+  transition: all 0.2s;
+}
+a:hover { color: var(--pop-cyan); }
+
+.muted { color: var(--ink-light) !important; font-family: 'Courier New', monospace; }
+
+/* ==========================================================
+   CARDS (PAPER SHEETS)
+   ========================================================== */
+.card {
+  background: var(--paper);
+  border: var(--border);
+  border-radius: var(--border-radius);
+  padding: 20px;
+  margin: 20px 0;
+  box-shadow: var(--shadow-hard);
+  position: relative;
+  backdrop-filter: none;
+}
+
+.card::before { display: none; }
+
+/* ==========================================================
+   TOPBAR
+   ========================================================== */
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+  gap: 15px;
+  background: var(--paper);
+  border: var(--border);
+  border-radius: var(--border-radius);
+  padding: 12px 20px;
+  box-shadow: var(--shadow-hard);
+}
+
+.brand img {
+  height: 40px;
+  filter: drop-shadow(2px 2px 0px rgba(0,0,0,0.1)); 
+}
+
+.top-actions, .right-actions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.chip {
+  background: #fff;
+  border: var(--border);
+  color: var(--ink);
+  font-weight: 700;
+  text-transform: uppercase;
+  font-size: 11px;
+  padding: 6px 14px;
+  border-radius: 50px;
+  text-decoration: none;
+}
+
+/* ==========================================================
+   BUTTONS (SKETCH STYLE)
+   ========================================================== */
+button, .btn, .btnlink {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 10px 20px;
+  border-radius: var(--border-radius);
+  border: var(--border);
+  background: var(--paper);
+  color: var(--ink);
+  font-weight: 800;
+  font-size: 14px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  cursor: pointer;
+  box-shadow: 3px 3px 0px var(--ink); 
+  transition: all 0.1s ease;
+  text-decoration: none;
+  user-select: none;
+}
+
+button:hover, .btn:hover {
+  transform: translate(-2px, -2px);
+  box-shadow: 5px 5px 0px var(--ink);
+  background: var(--pop-cyan);
+  color: #fff;
+}
+
+button:active, .btn:active {
+  transform: translate(2px, 2px);
+  box-shadow: 1px 1px 0px var(--ink);
+}
+
+.danger { color: var(--pop-red); border-color: var(--ink); }
+.danger:hover { background: var(--pop-red); color: white; }
+
+/* ==========================================================
+   INPUTS (TYPEWRITER)
+   ========================================================== */
+input, select, textarea {
+  width: 100%;
+  padding: 12px;
+  border-radius: var(--border-radius);
+  border: var(--border);
+  background: #fff;
+  color: var(--ink);
+  font-size: 16px;
+  font-family: 'Courier New', monospace;
+  font-weight: 600;
+  margin: 8px 0;
+  outline: none;
+  box-shadow: inset 2px 2px 0px rgba(0,0,0,0.05);
+}
+
+input:focus, select:focus, textarea:focus {
+  border-color: var(--pop-cyan);
+  background: #fff;
+}
+
+/* ==========================================================
+   TABS
+   ========================================================== */
+.tabs {
+  display: flex;
+  border-bottom: var(--border);
+  gap: 6px;
+  margin-bottom: 20px;
+  overflow-x: auto;
+  background: transparent;
+  border-radius: 0;
+  padding: 0;
+}
+
+.tab {
+  flex: 1;
+  text-align: center;
+  padding: 10px;
+  border: var(--border);
+  border-bottom: none;
+  border-radius: 6px 6px 0 0;
+  background: #eee;
+  color: var(--ink-light);
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+  min-width: 80px;
+  margin-bottom: -2px;
+}
+
+.tab.active {
+  background: var(--paper);
+  color: var(--ink);
+  padding-bottom: 12px; 
+  border-top: 4px solid var(--pop-cyan);
+}
+
+/* ==========================================================
+   TABLES (GRID SHEET)
+   ========================================================== */
+table { 
+  width: 100%; 
+  border-collapse: collapse; 
+  font-family: 'Courier New', monospace;
+}
+
+th {
+  text-align: left;
+  padding: 10px;
+  background: var(--ink);
+  color: #fff;
+  text-transform: uppercase;
+  font-size: 12px;
+  letter-spacing: 1px;
+  border: 1px solid var(--ink);
+}
+
+td {
+  padding: 10px;
+  border: 1px solid var(--ink-light);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+tr:nth-child(even) { background: #fafafa; }
+
+.table-responsive { overflow-x: auto; border: var(--border); border-radius: 4px; }
+
+/* ==========================================================
+   UTILITIES
+   ========================================================== */
+.pill {
+  display: inline-block;
+  padding: 2px 6px;
+  border-radius: 4px;
+  border: 1px solid var(--ink);
+  font-family: 'Courier New', monospace;
+  font-weight: 900;
+  font-size: 12px;
+  background: #fff;
+  color: var(--ink);
+  box-shadow: 2px 2px 0px rgba(0,0,0,0.1);
+}
+
+@media (max-width: 600px) {
+  .wrap, .home-wrap { padding: 10px; }
+  .topbar { flex-direction: column; align-items: stretch; gap: 10px; }
+  
+  /* UPDATED: Allow buttons to wrap and center them */
+  .topbar .right-actions { 
+      justify-content: center; 
+      flex-wrap: wrap; 
+      gap: 8px; 
+  }
+  
+  /* OPTIONAL: Reduce button size slightly on mobile to help them fit */
+  .topbar .right-actions .btn {
+      padding: 8px 12px;
+      font-size: 13px;
+      flex: 1 1 auto; /* Allows buttons to grow/shrink intelligently */
+  }
+
+  .tabs { gap: 4px; }
+  h1 { font-size: 24px; }
+}
