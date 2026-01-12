@@ -60,6 +60,7 @@ SQLite requires write permissions for the `data` folder so the web server can sa
 # Replace 'cricscore_container_name' with the actual container name from docker-compose
 # (You can check it via 'docker ps')
 
+docker cp ./data/cric_backup_2026-01-08_04-52.db cric-scorer:/var/www/html/cric.db
 docker exec -it cricscore_web chown -R www-data:www-data /var/www/html/data
 docker exec -it cricscore_web chmod -R 775 /var/www/html/data
 

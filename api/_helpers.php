@@ -1,7 +1,45 @@
 <?php
 // api/_helpers.php
 
+/**
+ * FAST READ: Uses cached columns from 'innings' table if available.
+ * Falls back to fresh calculation if cache columns are missing or null.
+ */
 function innings_totals(PDO $pdo, int $innings_id): array {
+  // Try to fetch cached columns
+  $stmt = $pdo->prepare("SELECT total_runs, total_wickets, total_legal_balls FROM innings WHERE id=?");
+  $stmt->execute([$innings_id]);
+  $cache = $stmt->fetch(PDO::FETCH_ASSOC);
+
+  // Fallback to calculation if columns don't exist or haven't been populated
+  if (!isset($cache['total_runs']) || $cache['total_runs'] === null) {
+      return innings_totals_fresh($pdo, $innings_id);
+  }
+
+  $runs = (int)$cache['total_runs'];
+  $wkts = (int)$cache['total_wickets'];
+  $legal = (int)$cache['total_legal_balls'];
+
+  $overs = intdiv($legal, 6);
+  $balls = $legal % 6;
+  $overs_float = $overs + ($balls / 6.0);
+  $rr = ($overs_float > 0) ? round($runs / $overs_float, 2) : 0;
+
+  return [
+    'runs' => $runs,
+    'legal_balls' => $legal,
+    'wkts' => $wkts,
+    'overs_float' => $overs_float,
+    'overs_text' => $overs . '.' . $balls,
+    'rr' => $rr
+  ];
+}
+
+/**
+ * SLOW CALCULATION: Sums raw data from ball_events.
+ * Used during DB optimization backfills or when writing updates.
+ */
+function innings_totals_fresh(PDO $pdo, int $innings_id): array {
   $stmt = $pdo->prepare("SELECT runs_bat, extras_runs, is_legal, is_wicket FROM ball_events WHERE innings_id=? ORDER BY seq ASC");
   $stmt->execute([$innings_id]);
 
@@ -18,8 +56,6 @@ function innings_totals(PDO $pdo, int $innings_id): array {
   $overs = intdiv($legal, 6);
   $balls = $legal % 6;
   $overs_float = $overs + ($balls / 6.0);
-  
-  // FIX: Calculate Run Rate
   $rr = ($overs_float > 0) ? round($runs / $overs_float, 2) : 0;
 
   return [
@@ -28,13 +64,28 @@ function innings_totals(PDO $pdo, int $innings_id): array {
     'wkts' => $wkts,
     'overs_float' => $overs_float,
     'overs_text' => $overs . '.' . $balls,
-    'rr' => $rr // Added Run Rate
+    'rr' => $rr
   ];
 }
 
 /**
- * Marks innings completed, advances match state:
- * (Logic remains same as before)
+ * TRIGGER: Recalculates totals from scratch and updates the 'innings' table cache.
+ * Call this after adding, editing, or undoing a ball.
+ */
+function recalculate_innings_score(PDO $pdo, int $innings_id) {
+    $fresh = innings_totals_fresh($pdo, $innings_id);
+    
+    // Ensure columns exist (silently fail if not, essentially skipping cache update)
+    try {
+        $upd = $pdo->prepare("UPDATE innings SET total_runs=?, total_wickets=?, total_legal_balls=? WHERE id=?");
+        $upd->execute([$fresh['runs'], $fresh['wkts'], $fresh['legal_balls'], $innings_id]);
+    } catch (Exception $e) {
+        // Columns might not exist yet if optimize_db.php wasn't run
+    }
+}
+
+/**
+ * Marks innings completed, advances match state
  */
 function complete_innings(PDO $pdo, int $innings_id): array {
   $innStmt = $pdo->prepare("SELECT * FROM innings WHERE id=?");
@@ -149,3 +200,4 @@ function complete_innings(PDO $pdo, int $innings_id): array {
 
   return ['ok'=>true,'next'=>'noop'];
 }
+?>

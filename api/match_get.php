@@ -1,8 +1,8 @@
 <?php
 require_once __DIR__ . '/../db.php';
-require_once __DIR__ . '/_helpers.php'; // Likely starts session via auth.php
+require_once __DIR__ . '/_helpers.php'; 
 
-// PERFORMANCE: Close session immediately. Viewers don't need to write to session.
+// PERFORMANCE: Close session immediately.
 if (session_id()) session_write_close();
 
 header('Content-Type: application/json');
@@ -18,7 +18,6 @@ if ($match_id <= 0) {
 
 // --- HELPER: Get Scorecard ---
 function get_scorecard(PDO $pdo, int $innings_id) {
-    // [Keep existing logic, but ensure indexes exist via optimization script]
     $bat = $pdo->prepare("
         SELECT 
             p.id, p.name, p.is_captain, 
@@ -40,10 +39,12 @@ function get_scorecard(PDO $pdo, int $innings_id) {
     ");
     $bat->execute([$innings_id]);
     
+    // UPDATED BOWLING QUERY: Includes Wides and No-Balls
     $bowl = $pdo->prepare("
         SELECT p.id, p.name, p.is_captain,
                COUNT(CASE WHEN b.is_legal=1 THEN 1 END) as legal_balls,
-               COUNT(CASE WHEN b.extras_type IN ('wd','nb') THEN 1 END) as wides_nbs,
+               COUNT(CASE WHEN b.extras_type='wd' THEN 1 END) as wides,    
+               COUNT(CASE WHEN b.extras_type='nb' THEN 1 END) as no_balls, 
                SUM(b.runs_bat + b.extras_runs) as runs_conceded,
                COUNT(CASE WHEN b.is_wicket=1 AND b.wicket_type != 'run out' THEN 1 END) as wickets
         FROM ball_events b
@@ -59,7 +60,6 @@ function get_scorecard(PDO $pdo, int $innings_id) {
 
 // --- HELPER: Detailed Data ---
 function get_detailed_data(PDO $pdo, int $innings_id) {
-    // OPTIMIZATION: Added JOIN to 'po' (Player Out) to avoid querying inside the loop
     $sql = "SELECT b.*, 
                    pb.name as bowler_name, 
                    ps.name as striker_name,
@@ -106,9 +106,8 @@ function get_detailed_data(PDO $pdo, int $innings_id) {
             
             $wicketPoints[] = ['x' => $wX, 'y' => $totalRuns, 'desc' => $b['wicket_type']];
             
-            // OPTIMIZATION: Used pre-fetched 'player_out_name' instead of running a new query
             $pName = $b['player_out_name'];
-            if (!$pName && $b['striker_id']) $pName = $b['striker_name']; // Fallback if wicket_player_out_id was null/striker
+            if (!$pName && $b['striker_id']) $pName = $b['striker_name'];
             
             $fow[] = [
                 'score' => $totalRuns, 'wicket' => $wicketsDown, 'player' => $pName ?: 'Unknown',
@@ -145,7 +144,19 @@ function get_detailed_data(PDO $pdo, int $innings_id) {
         $txt = $prefix . $eventText;
         
         $ovStr = intdiv(max(0,$legalBalls-1), 6) . '.' . (max(0,$legalBalls-1)%6 + 1);
-        $commentary[] = ['over' => $ovStr, 'text' => $txt, 'runs' => $runs, 'is_wicket' => (int)$b['is_wicket']];
+        
+        // ADDED: Pass all raw details so frontend can open edit modal
+        $commentary[] = [
+            'id' => (int)$b['id'], // Critical for Editing
+            'over' => $ovStr, 
+            'text' => $txt, 
+            'runs' => $runs, // Total runs on this ball
+            'runs_bat' => (int)$b['runs_bat'],
+            'extras_type' => $b['extras_type'],
+            'extras_runs' => (int)$b['extras_runs'],
+            'is_wicket' => (int)$b['is_wicket'],
+            'wicket_type' => $b['wicket_type']
+        ];
     }
     
     if ($legalBalls % 6 !== 0) {
@@ -180,7 +191,6 @@ $innStmt = $pdo->prepare("SELECT * FROM innings WHERE match_id=? ORDER BY inning
 $innStmt->execute([$match_id]);
 $innings = $innStmt->fetchAll();
 
-// Get Squads
 $pStmt = $pdo->prepare("SELECT id, name, team_id, is_captain FROM players WHERE team_id IN (?,?) ORDER BY name");
 $pStmt->execute([$match['team_a_id'], $match['team_b_id']]);
 $players = $pStmt->fetchAll();
@@ -189,9 +199,9 @@ $out = ['match'=>$match, 'innings'=>[], 'players'=>$players];
 $inn1 = null; $inn2 = null;
 
 foreach ($innings as $i) {
+    // This will now use the optimized cache logic
     $stats = innings_totals($pdo, (int)$i['id']);
     
-    // Recent balls (Simple query, no deep join needed)
     $ballStmt = $pdo->prepare('SELECT runs_bat, extras_type, extras_runs, is_wicket FROM ball_events WHERE innings_id=? ORDER BY seq ASC');
     $ballStmt->execute([$i['id']]);
     $allBalls = $ballStmt->fetchAll();
@@ -207,7 +217,6 @@ foreach ($innings as $i) {
     $details = get_detailed_data($pdo, (int)$i['id']);
     $scorecard = get_scorecard($pdo, (int)$i['id']);
     
-    // Team Name Lookup (Cached or Single Query)
     $bt = $pdo->query('SELECT name FROM teams WHERE id='.(int)$i['batting_team_id'])->fetchColumn() ?: 'Unknown Team';
     $crr = ($stats['overs_float'] > 0) ? round($stats['runs'] / $stats['overs_float'], 2) : 0.00;
 
@@ -232,7 +241,6 @@ foreach ($innings as $i) {
     if ($i['innings_no'] == 2) $inn2 = $innData;
 }
 
-// [Result Logic - Unchanged]
 if ($match['status'] === 'awaiting_super_over') {
     $out['match']['result_text'] = "MATCH TIED (Super Over?)";
     $out['match']['result_type'] = 'tie';
@@ -267,7 +275,6 @@ elseif ($match['status'] === 'completed') {
     }
 }
 
-// Chase Logic
 $out['chase'] = null;
 foreach ($out['innings'] as $inx) {
   if (($inx['innings_no'] === 2 || $inx['innings_no'] === 4) && $match['status'] !== 'completed') {

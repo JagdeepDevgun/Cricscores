@@ -57,12 +57,13 @@ $canEdit = $user ? true : false;
 
     /* SCORER KEYPAD */
     .scorer-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; margin-bottom: 15px; }
-    .scorer-buttons button { 
+    .scorer-buttons button, .btn-edit-run { 
         height: 55px; width: 100%; border-radius: 6px; 
         font-weight: 900; font-size: 18px; font-family: 'Courier New', monospace;
         background: #fff; color: #2c3e50; border: 2px solid #2c3e50; box-shadow: 3px 3px 0px #ccc;
+        cursor: pointer;
     }
-    .scorer-buttons button:active { transform: translate(2px, 2px); box-shadow: none; }
+    .scorer-buttons button:active, .btn-edit-run:active { transform: translate(2px, 2px); box-shadow: none; }
     
     /* COLOR KEYS */
     .btn-4 { color: #fff !important; background: #00bcd4 !important; border-color: #2c3e50 !important; }
@@ -168,6 +169,52 @@ $canEdit = $user ? true : false;
     </div>
     
     <button class="btn danger" style="margin-top:20px; width:100%; border:none; background:#eee; color:#555;" onclick="closeWicketModal()">Cancel</button>
+  </div>
+</div>
+
+<div id="modal-edit-ball" class="modal-wrap">
+  <div class="modal-box">
+    <h3>Edit Ball</h3>
+    <input type="hidden" id="edit-ball-id">
+    
+    <div style="margin-bottom:15px; text-align:left;">
+        <label>Runs (Bat)</label>
+        <div class="scorer-grid" style="grid-template-columns:repeat(7, 1fr); gap:5px; margin-top:5px;">
+            <button onclick="setEditRun(0)" class="btn-edit-run">0</button>
+            <button onclick="setEditRun(1)" class="btn-edit-run">1</button>
+            <button onclick="setEditRun(2)" class="btn-edit-run">2</button>
+            <button onclick="setEditRun(3)" class="btn-edit-run">3</button>
+            <button onclick="setEditRun(4)" class="btn-edit-run">4</button>
+            <button onclick="setEditRun(6)" class="btn-edit-run">6</button>
+        </div>
+        <input type="number" id="edit-runs-input" style="width:50px; padding:5px; margin-top:5px;">
+    </div>
+
+    <div style="margin-bottom:15px; text-align:left;">
+        <label>Extras</label><br>
+        <select id="edit-extras-type" style="padding:8px;">
+            <option value="">None</option>
+            <option value="wd">Wide</option>
+            <option value="nb">No Ball</option>
+            <option value="lb">Leg Bye</option>
+            <option value="b">Bye</option>
+        </select>
+        <input type="number" id="edit-extras-runs" placeholder="+Runs" value="0" style="width:50px; padding:8px;">
+    </div>
+
+    <div style="margin-bottom:15px; text-align:left;">
+        <label>Wicket?</label>
+        <select id="edit-wicket-type" style="padding:8px; width:100%;">
+            <option value="">Not Out</option>
+            <option value="bowled">Bowled</option>
+            <option value="caught">Caught</option>
+            <option value="lbw">LBW</option>
+            <option value="run out">Run Out</option>
+        </select>
+    </div>
+
+    <button onclick="submitEditBall()" class="btn" style="width:100%; background:var(--pop-cyan); color:white;">Save Changes</button>
+    <button onclick="document.getElementById('modal-edit-ball').style.display='none'" class="btn danger" style="width:100%; margin-top:10px; background:#eee; color:#333;">Cancel</button>
   </div>
 </div>
 
@@ -407,11 +454,11 @@ function renderTabs() {
             }).join('')}
             </tbody></table></div>
             <div style="height:15px;"></div>
-            <div class="table-responsive"><table class="score-table"><thead><tr><th>Bowler</th><th>O</th><th>R</th><th>W</th><th>Econ</th></tr></thead><tbody>
+            <div class="table-responsive"><table class="score-table"><thead><tr><th>Bowler</th><th>O</th><th>R</th><th>W</th><th style="font-size:10px; color:#555;">WD</th><th style="font-size:10px; color:#555;">NB</th><th>Econ</th></tr></thead><tbody>
             ${inn.scorecard.bowlers.map(b => {
                  const overs = Math.floor(b.legal_balls/6) + '.' + (b.legal_balls%6);
                  const econ = b.legal_balls > 0 ? ((b.runs_conceded / b.legal_balls)*6).toFixed(1) : '-';
-                 return `<tr><td><a href="player.php?id=${b.id}">${b.name}</a></td><td>${overs}</td><td>${b.runs_conceded}</td><td><b>${b.wickets}</b></td><td>${econ}</td></tr>`;
+                 return `<tr><td><a href="player.php?id=${b.id}">${b.name}</a></td><td>${overs}</td><td>${b.runs_conceded}</td><td><b>${b.wickets}</b></td><td style="color:#666; font-size:12px;">${b.wides}</td><td style="color:#666; font-size:12px;">${b.no_balls}</td><td>${econ}</td></tr>`;
             }).join('')}
             </tbody></table></div>
             ${inn.fow.length > 0 ? `<div style="margin-top:15px; font-weight:bold; font-size:12px;">Fall of Wickets:</div><div style="font-size:12px; line-height:1.6;">${inn.fow.map(f => `${f.score}-${f.wicket} (${f.player}, ${f.over} ov)`).join(', ')}</div>` : ''}
@@ -432,7 +479,8 @@ function renderTabs() {
     document.getElementById('tab-summary').innerHTML = sumHtml;
     if(currentInnings) {
         document.getElementById('tab-comm').innerHTML = currentInnings.commentary.map(c => 
-            `<div style="padding:12px; border-bottom:1px solid #eee; display:flex; gap:10px; align-items:flex-start;">
+            // FIX: ADDED CLICK EVENT TO EDIT BALL
+            `<div onclick="openEditBall(${c.id}, ${c.runs_bat}, '${c.extras_type||''}', ${c.extras_runs}, '${c.wicket_type||''}')" style="cursor:pointer; padding:12px; border-bottom:1px solid #eee; display:flex; gap:10px; align-items:flex-start;">
                 <div style="font-weight:900; color:#2c3e50; min-width:35px;">${c.over}</div>
                 <div style="font-family:'Courier New'; font-size:14px;">${c.text}</div>
             </div>`
@@ -636,6 +684,39 @@ async function postBall(fd) { await fetch('../api/ball_add.php', {method:'POST',
 async function undoBall() { await fetch('../api/ball_undo.php', {method:'POST', body:new URLSearchParams({innings_id:currentInnings.id})}); refresh(); }
 async function endInnings() { if(confirm('End Innings?')) { await fetch('../api/innings_complete.php', {method:'POST', body:new URLSearchParams({innings_id:currentInnings.id})}); refresh(); } }
 async function doLogout(){ await fetch('../api/logout.php',{method:'POST'}); location.href='../index.php'; }
+
+/* EDIT BALL LOGIC */
+function openEditBall(id, runs, exType, exRuns, wType) {
+    if(!CAN_EDIT) return;
+    document.getElementById('edit-ball-id').value = id;
+    document.getElementById('edit-runs-input').value = runs;
+    document.getElementById('edit-extras-type').value = exType;
+    document.getElementById('edit-extras-runs').value = exRuns;
+    document.getElementById('edit-wicket-type').value = wType || '';
+    document.getElementById('modal-edit-ball').style.display = 'flex';
+}
+
+function setEditRun(r) { document.getElementById('edit-runs-input').value = r; }
+
+async function submitEditBall() {
+    const fd = new FormData();
+    fd.append('ball_id', document.getElementById('edit-ball-id').value);
+    fd.append('runs_bat', document.getElementById('edit-runs-input').value);
+    fd.append('extras_type', document.getElementById('edit-extras-type').value);
+    fd.append('extras_runs', document.getElementById('edit-extras-runs').value);
+    
+    const wType = document.getElementById('edit-wicket-type').value;
+    if(wType) {
+        fd.append('is_wicket', 1);
+        fd.append('wicket_type', wType);
+    } else {
+        fd.append('is_wicket', 0);
+    }
+    
+    await fetch('../api/ball_edit.php', { method:'POST', body:fd });
+    document.getElementById('modal-edit-ball').style.display = 'none';
+    refresh();
+}
 
 refresh();
 const refreshRate = 5000;
