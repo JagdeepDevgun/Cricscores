@@ -4,6 +4,8 @@
 
 Built with **PHP** and **SQLite**, it runs easily in a Docker container and functions as a Progressive Web App (PWA) on mobile devices.
 
+![Cricscore Logo](assets/icon-512.png)
+
 ## 🌟 Features
 
 * **Tournament Management:** Organize multiple tournaments, manage points tables, and generate fixtures automatically.
