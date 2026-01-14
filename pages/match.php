@@ -1,6 +1,7 @@
 <?php
-require_once __DIR__ . '/../db.php';
+ob_start();
 require_once __DIR__ . '/../api/auth.php';
+require_once __DIR__ . '/../db.php';
 $id = (int)($_GET['id'] ?? 0);
 $user = auth_user($pdo);
 $canEdit = $user ? true : false;
@@ -86,6 +87,59 @@ $canEdit = $user ? true : false;
         background: #e3f2fd; border: 2px solid #2196f3; border-radius: 6px; 
         padding: 10px; margin-top: 10px; color: #0d47a1; 
     }
+
+    /* COMMENTARY STYLES */
+    .comm-row {
+        display: flex;
+        align-items: flex-start;
+        padding: 15px;
+        border-bottom: 1px solid #f0f0f0;
+        gap: 15px;
+    }
+    .comm-over {
+        font-family: 'Courier New', monospace;
+        font-weight: 800;
+        color: #7f8c8d;
+        font-size: 13px;
+        min-width: 35px;
+        padding-top: 8px;
+    }
+    .comm-ball {
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 900;
+        font-family: 'Courier New', monospace;
+        font-size: 14px;
+        border: 2px solid #2c3e50;
+        flex-shrink: 0;
+        box-shadow: 2px 2px 0px rgba(0,0,0,0.1);
+    }
+    .comm-ball.normal { background: #fff; color: #2c3e50; }
+    .comm-ball.four { background: #00bcd4; color: #fff; border-color: #008ba3; }
+    .comm-ball.six { background: #ffeb3b; color: #000; border-color: #fbc02d; }
+    .comm-ball.wicket { background: #ff5252; color: #fff; border-color: #d32f2f; }
+    .comm-ball.extra { background: #ab47bc; color: #fff; border-color: #7b1fa2; font-size: 11px; }
+    
+    .comm-text { flex: 1; font-size: 14px; line-height: 1.5; color: #37474f; }
+    
+    /* SUMMARY ROW */
+    .comm-summary {
+        background: #fcfcfc;
+        border-bottom: 2px solid #2c3e50;
+        padding: 15px;
+        font-size: 13px;
+        color: #444;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+    .comm-summary-title { font-weight: 800; color: #2c3e50; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; display:flex; justify-content:space-between; }
+    .comm-summary-stats { display: flex; justify-content: space-between; align-items: center; }
+    .comm-summary-score { font-family: 'Courier New'; font-weight: 900; font-size: 18px; color:#2c3e50; }
 
     /* Modal */
     .modal-wrap { position:fixed; inset:0; background:rgba(255,255,255,0.95); z-index:2000; display:none; align-items:center; justify-content:center; }
@@ -441,6 +495,9 @@ function render() {
 function renderTabs() {
     let scHtml = '', sumHtml = '';
     matchData.innings.forEach(inn => {
+        const ex = inn.scorecard.extras || {};
+        const extrasStr = `Extras: <b>${ex.total||0}</b> (WD ${ex.wides||0}, NB ${ex.no_balls||0}, B ${ex.byes||0}, LB ${ex.leg_byes||0})`;
+
         scHtml += `<div style="border:2px solid #2c3e50; border-radius:6px; padding:15px; margin-bottom:20px; background:#fff; box-shadow:4px 4px 0 #eee;">
             <h3 style="margin:0 0 10px 0; border-bottom:2px solid #eee; padding-bottom:5px;">
                 <span class="team-sticker" style="font-size:16px;">${inn.batting_team}</span> 
@@ -453,6 +510,7 @@ function renderTabs() {
                 return `<tr><td><a href="player.php?id=${b.id}">${b.name}</a>${b.is_captain==1?' (c)':''} ${outText}</td><td><b>${b.runs}</b></td><td>${b.balls}</td><td>${b.fours}</td><td>${b.sixes}</td><td>${sr}</td></tr>`;
             }).join('')}
             </tbody></table></div>
+            <div style="padding:10px; background:#fafafa; border-bottom:1px solid #eee; font-size:13px; color:#444;">${extrasStr}</div>
             <div style="height:15px;"></div>
             <div class="table-responsive"><table class="score-table"><thead><tr><th>Bowler</th><th>O</th><th>R</th><th>W</th><th style="font-size:10px; color:#555;">WD</th><th style="font-size:10px; color:#555;">NB</th><th>Econ</th></tr></thead><tbody>
             ${inn.scorecard.bowlers.map(b => {
@@ -470,7 +528,9 @@ function renderTabs() {
             sumHtml += inn.overs_history.map(o => `
                 <div style="border-bottom:1px solid #ddd; padding:8px 0; display:flex; justify-content:space-between;">
                    <div style="font-weight:bold; font-size:13px;">Over ${o.over} <span class="muted" style="font-weight:400;">${o.bowler}</span></div>
-                   <div>${o.balls.map(x=>formatPill(x.label)).join('')}</div>
+                   <div style="display:flex; gap:2px;">
+                     ${o.balls.map(x => `<span onclick="openEditBall(${x.id}, ${x.runs_bat}, '${x.extras_type||''}', ${x.extras_runs}, '${x.wicket_type||''}')" style="cursor:pointer">${formatPill(x.label)}</span>`).join('')}
+                   </div>
                 </div>`).join('');
         }
     });
@@ -478,13 +538,31 @@ function renderTabs() {
     document.getElementById('tab-scorecard').innerHTML = scHtml;
     document.getElementById('tab-summary').innerHTML = sumHtml;
     if(currentInnings) {
-        document.getElementById('tab-comm').innerHTML = currentInnings.commentary.map(c => 
-            // FIX: ADDED CLICK EVENT TO EDIT BALL
-            `<div onclick="openEditBall(${c.id}, ${c.runs_bat}, '${c.extras_type||''}', ${c.extras_runs}, '${c.wicket_type||''}')" style="cursor:pointer; padding:12px; border-bottom:1px solid #eee; display:flex; gap:10px; align-items:flex-start;">
-                <div style="font-weight:900; color:#2c3e50; min-width:35px;">${c.over}</div>
-                <div style="font-family:'Courier New'; font-size:14px;">${c.text}</div>
-            </div>`
-        ).join('');
+        document.getElementById('tab-comm').innerHTML = currentInnings.commentary.map(c => {
+            if (c.type === 'over_end') {
+                return `<div class="comm-summary">
+                    <div class="comm-summary-title"><span>${c.over}</span> <span>${c.partnership}</span></div>
+                    <div class="comm-summary-stats">
+                        <div class="comm-summary-score">${c.score}</div>
+                        <div>${c.batsmen}</div>
+                    </div>
+                </div>`;
+            }
+            
+            // Standard Ball
+            let ballHtml = '';
+            if (c.is_wicket) ballHtml = '<div class="comm-ball wicket">W</div>';
+            else if (c.runs_bat == 6) ballHtml = '<div class="comm-ball six">6</div>';
+            else if (c.runs_bat == 4) ballHtml = '<div class="comm-ball four">4</div>';
+            else if (c.extras_type) ballHtml = `<div class="comm-ball extra">${c.extras_runs}${c.extras_type.toUpperCase()}</div>`;
+            else ballHtml = `<div class="comm-ball normal">${c.runs}</div>`;
+
+            return `<div class="comm-row">
+                <div class="comm-over">${c.over}</div>
+                <div class="comm-score">${ballHtml}</div>
+                <div class="comm-text">${c.text}</div>
+            </div>`;
+        }).join('');
     }
 }
 
