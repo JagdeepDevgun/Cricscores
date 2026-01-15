@@ -2,7 +2,7 @@
 require_once __DIR__ . '/../db.php';
 header('Content-Type: application/json');
 
-// 1. Global Batting (FIXED: Added MAX(p.id) as id)
+// 1. Global Batting
 $batSql = "
   SELECT MAX(p.id) as id, p.name, 
     COUNT(DISTINCT m.id) as matches,
@@ -24,11 +24,11 @@ while ($r = $stmt->fetch(PDO::FETCH_ASSOC)) {
     $batStats[$r['name']] = $r;
 }
 
-// 2. Global Bowling (FIXED: Added MAX(p.id) as id)
+// 2. Global Bowling (FIX: Added LOWER() check)
 $bowlSql = "
   SELECT MAX(p.id) as id, p.name,
     COUNT(DISTINCT m.id) as matches,
-    COUNT(CASE WHEN b.is_wicket=1 AND b.wicket_type != 'run out' THEN 1 END) as wickets,
+    COUNT(CASE WHEN b.is_wicket=1 AND LOWER(b.wicket_type) != 'run out' THEN 1 END) as wickets,
     COUNT(CASE WHEN b.is_legal=1 THEN 1 END) as legal_balls,
     COUNT(CASE WHEN b.is_legal=1 AND b.runs_bat=0 AND b.extras_runs=0 THEN 1 END) as dots,
     SUM(b.runs_bat + b.extras_runs) as runs_conceded

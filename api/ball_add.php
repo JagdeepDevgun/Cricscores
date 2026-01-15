@@ -13,6 +13,12 @@ $extras_runs = (int)($_POST['extras_runs'] ?? 0);
 $is_wicket   = (int)($_POST['is_wicket'] ?? 0);
 $wicket_type = trim($_POST['wicket_type'] ?? '');
 
+// --- FIX: Normalize 'run out' casing ---
+// This ensures future inputs like "Run Out", "runout", "Run-Out" are saved as "run out"
+if ($is_wicket && (stripos($wicket_type, 'run') !== false && stripos($wicket_type, 'out') !== false)) {
+    $wicket_type = 'run out';
+}
+
 // Player IDs
 $striker_id = (int)($_POST['striker_id'] ?? 0);
 $non_striker_id = (int)($_POST['non_striker_id'] ?? 0);

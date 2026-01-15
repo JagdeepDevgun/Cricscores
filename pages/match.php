@@ -541,11 +541,12 @@ function renderTabs() {
         document.getElementById('tab-comm').innerHTML = currentInnings.commentary.map(c => {
             if (c.type === 'over_end') {
                 return `<div class="comm-summary">
-                    <div class="comm-summary-title"><span>${c.over}</span> <span>${c.partnership}</span></div>
+                    <div class="comm-summary-title"><span>${c.over}</span> <span style="font-weight:900; color:#00bcd4;">Runs this over: ${c.this_over_runs}</span></div>
                     <div class="comm-summary-stats">
                         <div class="comm-summary-score">${c.score}</div>
                         <div>${c.batsmen}</div>
                     </div>
+                    <div style="text-align:right; font-size:11px; color:#888;">${c.partnership}</div>
                 </div>`;
             }
             

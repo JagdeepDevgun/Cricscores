@@ -32,11 +32,11 @@ foreach($batsmen as &$b) {
 }
 unset($b); // Safety unset
 
-// 2. Top Bowlers
+// 2. Top Bowlers (FIX: Added LOWER() check for run out)
 $bowlSql = "
   SELECT p.id, p.name, t.name as team,
     COUNT(DISTINCT m.id) as matches,
-    COUNT(CASE WHEN b.is_wicket=1 AND b.wicket_type != 'run out' THEN 1 END) as wickets,
+    COUNT(CASE WHEN b.is_wicket=1 AND LOWER(b.wicket_type) != 'run out' THEN 1 END) as wickets,
     COUNT(CASE WHEN b.is_legal=1 THEN 1 END) as legal_balls,
     COUNT(CASE WHEN b.is_legal=1 AND b.runs_bat=0 AND b.extras_runs=0 THEN 1 END) as dots,
     SUM(b.runs_bat + b.extras_runs) as runs_conceded
@@ -54,7 +54,7 @@ $bowlStmt = $pdo->prepare($bowlSql);
 $bowlStmt->execute([$tid]);
 $bowlers = $bowlStmt->fetchAll(PDO::FETCH_ASSOC);
 
-// Calculate 3-Wicket Hauls separately
+// Calculate 3-Wicket Hauls separately (FIX: Added LOWER() check)
 $threesSql = "
   SELECT bowler_id, COUNT(*) as count
   FROM (
@@ -62,7 +62,7 @@ $threesSql = "
     FROM ball_events b
     JOIN innings i ON i.id = b.innings_id
     JOIN matches m ON m.id = i.match_id
-    WHERE m.tournament_id = ? AND b.is_wicket=1 AND b.wicket_type != 'run out'
+    WHERE m.tournament_id = ? AND b.is_wicket=1 AND LOWER(b.wicket_type) != 'run out'
     GROUP BY m.id, b.bowler_id
     HAVING w >= 3
   )
@@ -77,7 +77,7 @@ foreach($bowlers as &$b) {
     $b['econ'] = ($overs > 0) ? round($b['runs_conceded'] / $overs, 2) : 0.0;
     $b['w3'] = $threesMap[$b['id']] ?? 0;
 }
-unset($b); // FIX: Break reference so the last bowler isn't overwritten later
+unset($b); 
 
 // 3. Highest Sixes
 $sixSql = "
@@ -135,9 +135,10 @@ $allStatsBat->execute([$tid]);
 $batMap = [];
 while($r = $allStatsBat->fetch(PDO::FETCH_ASSOC)) $batMap[$r['id']] = $r;
 
+// (FIX: Added LOWER() check)
 $allStatsBowl = $pdo->prepare("
     SELECT p.id, COUNT(DISTINCT m.id) as matches, 
-           COUNT(CASE WHEN b.is_wicket=1 AND b.wicket_type != 'run out' THEN 1 END) as wickets,
+           COUNT(CASE WHEN b.is_wicket=1 AND LOWER(b.wicket_type) != 'run out' THEN 1 END) as wickets,
            COUNT(CASE WHEN b.is_legal=1 THEN 1 END) as legal_balls,
            COUNT(CASE WHEN b.is_legal=1 AND b.runs_bat=0 AND b.extras_runs=0 THEN 1 END) as dots,
            SUM(b.runs_bat + b.extras_runs) as runs_conceded
@@ -153,7 +154,6 @@ foreach($allPlayersRaw as $p) {
     if (empty($p['name'])) continue; 
     
     $pid = $p['id'];
-    // Because $b was unset above, this assignment is safe
     $b = $batMap[$pid] ?? ['matches'=>0,'runs'=>0,'balls'=>0,'fours'=>0,'sixes'=>0];
     $bo = $bowlMap[$pid] ?? ['matches'=>0,'wickets'=>0,'legal_balls'=>0,'dots'=>0,'runs_conceded'=>0];
     

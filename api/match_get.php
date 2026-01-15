@@ -337,12 +337,13 @@ function get_detailed_data(PDO $pdo, int $innings_id) {
 
         if ($b['is_wicket']) {
             $wt = strtolower($b['wicket_type'] ?? '');
+            if($wt == 'caught and bowled') $wt = 'caught';
             $pool = $c_map['out'][$wt] ?? $c_map['out']['default'];
             $eventText = $pool[$idx] ?? $pool[0];
             
             if($consecutiveWickets >= 3) {
-                $mPool = $c_map['milestone']['hattrick'];
-                $milestoneText = "<br><span style='color:#e91e63; font-weight:bold;'> " . ($mPool[$idx] ?? $mPool[0]) . "</span>";
+                 $mPool = $c_map['milestone']['hattrick'];
+                 $milestoneText = "<br><span style='color:#e91e63; font-weight:bold;'> " . ($mPool[$idx] ?? $mPool[0]) . "</span>";
             }
         } elseif ($b['extras_type']) {
             $et = strtolower($b['extras_type']);
@@ -353,7 +354,6 @@ function get_detailed_data(PDO $pdo, int $innings_id) {
             $pool = $c_map[$r] ?? ["$r runs."];
             $eventText = $pool[$idx] ?? $pool[0];
             
-            // Milestones
             if($prevScore < 50 && $newScore >= 50) {
                  $mPool = $c_map['milestone']['50'];
                  $milestoneText = "<br><span style='color:#ff9800; font-weight:bold;'> " . ($mPool[$idx] ?? $mPool[0]) . "</span>";
@@ -367,7 +367,7 @@ function get_detailed_data(PDO $pdo, int $innings_id) {
         if($is_legal && $legalBalls % 6 === 0 && $overRunsConceded === 0) {
              $mPool = $c_map['milestone']['maiden'];
              $milestoneText .= "<br><span style='color:#00bcd4; font-weight:bold;'> " . ($mPool[$idx] ?? $mPool[0]) . "</span>";
-             $overRunsConceded = 0;
+             // Do not reset overRunsConceded here; we need it for the summary block below
         }
 
         $ovStr = intdiv(max(0,$legalBalls-1), 6) . '.' . (max(0,$legalBalls-1)%6 + 1);
@@ -383,7 +383,6 @@ function get_detailed_data(PDO $pdo, int $innings_id) {
 
         // --- END OF OVER SUMMARY ---
         if ($is_legal && $legalBalls % 6 === 0) {
-            // Determine active batsmen for summary by peeking ahead or using current state logic
             $activeS = $sId; $activeNS = $nsId;
             $nextBall = $balls[$k+1] ?? null;
             
@@ -391,10 +390,9 @@ function get_detailed_data(PDO $pdo, int $innings_id) {
                 $activeS = $nextBall['striker_id'];
                 $activeNS = $nextBall['non_striker_id'];
             } elseif ($b['is_wicket']) {
-                // Determine survivor if last ball was wicket and no new ball yet
                 $outId = $b['wicket_player_out_id'];
                 $activeS = ($outId == $sId) ? $nsId : $sId;
-                $activeNS = 0; // Second spot is technically empty/new guy
+                $activeNS = 0; 
             }
             
             $batsmenStr = [];
@@ -404,12 +402,15 @@ function get_detailed_data(PDO $pdo, int $innings_id) {
             $commSummary = [
                 'type' => 'over_end',
                 'id' => 'summ_'.$currentOverIndex,
-                'over' => "END $currentOverIndex",
+                'over' => "END OF OVER $currentOverIndex",
                 'score' => "<b>$totalRuns/$wicketsDown</b>",
                 'batsmen' => implode(" &bull; ", $batsmenStr),
-                'partnership' => "Part: $p_runs ($p_balls)" 
+                'partnership' => "P'SHIP: $p_runs ($p_balls)",
+                'this_over_runs' => $overRunsConceded // ADDED RUNS THIS OVER
             ];
             $commentary[] = $commSummary;
+            
+            $overRunsConceded = 0; // Reset for calculation of next over's maiden/runs
         }
     }
     
@@ -425,7 +426,7 @@ function get_detailed_data(PDO $pdo, int $innings_id) {
     ];
 }
 
-// --- MAIN LOGIC ---
+// --- MAIN LOGIC (unchanged) ---
 $stmt = $pdo->prepare("SELECT m.*, ta.name AS team_a, ta.short_name AS team_a_short, ta.icon AS team_a_icon, tb.name AS team_b, tb.short_name AS team_b_short, tb.icon AS team_b_icon, p.name as mom_name FROM matches m JOIN teams ta ON ta.id=m.team_a_id JOIN teams tb ON tb.id=m.team_b_id LEFT JOIN players p ON p.id = m.man_of_match_id WHERE m.id=?");
 $stmt->execute([$match_id]);
 $match = $stmt->fetch();
