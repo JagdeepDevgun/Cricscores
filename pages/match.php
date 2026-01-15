@@ -150,8 +150,18 @@ $canEdit = $user ? true : false;
     .wicket-btn { padding: 15px; font-weight: 800; text-transform: uppercase; border: 2px solid #2c3e50; background: #fff; color: #2c3e50; border-radius: 6px; cursor: pointer; transition:0.1s; }
     .wicket-btn:hover { background: #2c3e50; color: #fff; transform: translateY(-2px); box-shadow: 3px 3px 0px rgba(0,0,0,0.2); }
 
-    /* Selects in Scorer */
-    .player-select { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:15px; padding:15px; border:2px dashed #ccc; border-radius:8px; background: #fafafa; }
+    /* UPDATED: Player Select Grid with Swap Button */
+    .player-select { 
+        display: grid; 
+        grid-template-columns: 1fr auto 1fr; /* Left (Striker) - Middle (Swap) - Right (NonStriker) */
+        gap: 8px; 
+        margin-bottom: 15px; 
+        padding: 15px; 
+        border: 2px dashed #ccc; 
+        border-radius: 8px; 
+        background: #fafafa; 
+        align-items: center;
+    }
     .player-select label { font-size: 11px; font-weight:700; text-transform:uppercase; color: #7f8c8d; }
   </style>
 <link rel="manifest" href="/manifest.json">
@@ -304,11 +314,17 @@ $canEdit = $user ? true : false;
             <label>Striker</label>
             <select id="striker"></select>
         </div>
+        
+        <div style="padding-top: 18px;">
+            <button onclick="swapBatters()" class="btn" style="padding: 0; width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow:none; border:2px solid #ccc; font-size: 18px;" title="Swap Batters">⇄</button>
+        </div>
+
         <div>
             <label>Non-Striker</label>
             <select id="nonstriker"></select>
         </div>
-        <div style="grid-column: span 2;">
+        
+        <div style="grid-column: span 3;">
             <label>Current Bowler</label>
             <select id="bowler"></select>
         </div>
@@ -650,6 +666,15 @@ function updateAutoDetect() {
     
     populate('striker', batPlayers, s); populate('nonstriker', batPlayers, ns); populate('bowler', bowlPlayers, b);
     lastProcessedBallId = thisBallId;
+}
+
+/* SWAP FUNCTION */
+function swapBatters() {
+    var s = document.getElementById('striker');
+    var ns = document.getElementById('nonstriker');
+    var tmp = s.value;
+    s.value = ns.value;
+    ns.value = tmp;
 }
 
 /* WICKET MODAL LOGIC */
