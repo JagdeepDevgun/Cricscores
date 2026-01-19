@@ -96,8 +96,6 @@ function result_text($m){
     .badge.live { background: #ffeb3b; color: #000; border-color: #000; box-shadow: 2px 2px 0px rgba(0,0,0,0.1); }
     .teams { font-size:16px; font-weight:800; margin-bottom:5px; }
     .res { margin-top:10px; font-weight:700; color: #00bcd4; font-family: 'Courier New', monospace; }
-    .modal-backdrop { position: fixed; inset: 0; background: rgba(255,255,255,0.9); z-index: 2000; display: none; align-items: center; justify-content: center; }
-    .modal { background: #fff; padding: 25px; border-radius: 6px; width: 90%; max-width: 350px; border: 2px solid #2c3e50; box-shadow: 6px 6px 0px #2c3e50; }
   </style>
 <link rel="manifest" href="/manifest.json">
 <link rel="icon" type="image/png" href="/assets/logo.png">
@@ -112,20 +110,6 @@ function result_text($m){
 </head>
 <body>
 
-<div id="pwdModal" class="modal-backdrop">
-  <form class="modal" onsubmit="changePassword(event)">
-    <h3 style="margin-top:0;">Change Password</h3>
-    <label class="muted" style="font-size:12px;">Current Password</label>
-    <input type="password" name="old_password" required>
-    <label class="muted" style="font-size:12px;">New Password</label>
-    <input type="password" name="new_password" required>
-    <div style="display:flex; gap:10px; margin-top:15px;">
-      <button type="submit" class="btn" style="flex:1;">Update</button>
-      <button type="button" class="btn danger" onclick="document.getElementById('pwdModal').style.display='none'" style="flex:1;">Cancel</button>
-    </div>
-  </form>
-</div>
-
 <div class="home-wrap">
   <div class="topbar">
     <div class="brand">
@@ -139,7 +123,7 @@ function result_text($m){
       <?php if ($user): ?>
         <a class="btn" href="/pages/commentary_manager.php" style="background:#fff3e0; color:#e65100;">🎙️ Commentary</a>
         <a class="btn" href="/api/tournament_create.php">+ Tournament</a>
-        <button class="btn" onclick="document.getElementById('pwdModal').style.display='flex'">Passwd</button>
+        <a class="btn" href="/pages/settings.php">⚙️ Settings</a>
         <a class="btn danger" href="#" id="logoutBtn">Logout</a>
       <?php else: ?>
         <a class="btn" href="/pages/login.php">Login</a>
@@ -244,28 +228,6 @@ function result_text($m){
       try { await fetch('/api/logout.php', { credentials:'same-origin' }); } catch(e){}
       location.href = '/';
     });
-  }
-
-  async function changePassword(e) {
-    e.preventDefault();
-    const form = e.target;
-    const btn = form.querySelector('button[type="submit"]');
-    const originalText = btn.innerText;
-    btn.innerText = 'Updating...';
-    btn.disabled = true;
-
-    try {
-        const r = await fetch('/api/change_password.php', { method: 'POST', body: new FormData(form) });
-        const j = await r.json();
-        if (r.ok) {
-            alert('Password changed successfully!');
-            document.getElementById('pwdModal').style.display = 'none';
-            form.reset();
-        } else {
-            alert(j.error || 'Failed to update password');
-        }
-    } catch (err) { alert('Network error'); } 
-    finally { btn.innerText = originalText; btn.disabled = false; }
   }
 </script>
 </body>
