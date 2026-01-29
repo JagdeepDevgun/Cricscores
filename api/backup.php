@@ -8,34 +8,35 @@ if (empty($_SESSION['user_id'])) {
     die("Access Denied. Please login.");
 }
 
-// 2. Define Database Path
-// Adjust this if your folder structure is different. 
-// Currently assumes api/ is one level deep, so ../data/cric.db is the path.
+// 2. Define Paths
 $dbPath = __DIR__ . '/../cric.db';
+$backupDir = __DIR__ . '/../data/'; 
 
-// 3. Check if file exists
+if (!is_dir($backupDir)) {
+    mkdir($backupDir, 0775, true);
+}
+
+// 3. Source Check
 if (!file_exists($dbPath)) {
     http_response_code(404);
-    die("Error: Database file not found at: " . $dbPath);
+    die("Error: Database file not found.");
 }
 
-// 4. Force Download Headers
-$backupName = 'cric_backup_' . date('Y-m-d_H-i') . '.db';
+// 4. Create backup file (Direct copy is safe when not in WAL mode)
+$backupFileName = 'cric_backup_' . date('Y-m-d_H-i-s') . '.db';
+$destPath = $backupDir . $backupFileName;
 
+if (!copy($dbPath, $destPath)) {
+    die("Error: Failed to create backup file.");
+}
+
+// 5. Force Download Headers
 header('Content-Description: File Transfer');
 header('Content-Type: application/octet-stream');
-header('Content-Disposition: attachment; filename="' . $backupName . '"');
-header('Expires: 0');
-header('Cache-Control: must-revalidate');
-header('Pragma: public');
-header('Content-Length: ' . filesize($dbPath));
+header('Content-Disposition: attachment; filename="' . $backupFileName . '"');
+header('Content-Length: ' . filesize($destPath));
 
-// 5. Clear output buffer (Crucial to prevent corrupted files)
-while (ob_get_level()) {
-    ob_end_clean();
-}
-
-// 6. Send File
-readfile($dbPath);
+while (ob_get_level()) { ob_end_clean(); }
+readfile($destPath);
 exit;
 ?>

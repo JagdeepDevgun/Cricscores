@@ -280,7 +280,17 @@ function get_detailed_data(PDO $pdo, int $innings_id, ?int $target_run_count = n
 // ==========================================
 // 5. MAIN EXECUTION
 // ==========================================
-$stmt = $pdo->prepare("SELECT m.*, ta.name AS team_a, tb.name AS team_b FROM matches m JOIN teams ta ON ta.id=m.team_a_id JOIN teams tb ON tb.id=m.team_b_id WHERE m.id=?");
+$stmt = $pdo->prepare("
+    SELECT m.*, 
+           ta.name AS team_a, 
+           tb.name AS team_b,
+           pmom.name AS mom_name 
+    FROM matches m 
+    JOIN teams ta ON ta.id = m.team_a_id 
+    JOIN teams tb ON tb.id = m.team_b_id 
+    LEFT JOIN players pmom ON pmom.id = m.man_of_match_id
+    WHERE m.id = ?
+");
 $stmt->execute([$match_id]);
 $match = $stmt->fetch(PDO::FETCH_ASSOC);
 if (!$match) { echo json_encode(['error' => 'Match not found']); exit; }

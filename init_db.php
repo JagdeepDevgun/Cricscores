@@ -2,6 +2,10 @@
 // init_db.php
 require_once __DIR__ . '/db.php';
 
+// Force the database to use standard rollback journal mode instead of WAL
+$pdo->exec("PRAGMA journal_mode = DELETE;");
+$pdo->exec("PRAGMA synchronous = FULL;");
+
 $pdo->exec("
 CREATE TABLE IF NOT EXISTS tournaments (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -44,7 +48,9 @@ CREATE TABLE IF NOT EXISTS matches (
   winner_team_id INTEGER,
   result_type TEXT,
   super_over INTEGER NOT NULL DEFAULT 0,
-  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  is_final INTEGER DEFAULT 0, 
+  man_of_match_id INTEGER DEFAULT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_matches_tourn ON matches(tournament_id);
 
@@ -57,7 +63,10 @@ CREATE TABLE IF NOT EXISTS innings (
   target INTEGER,
   completed INTEGER NOT NULL DEFAULT 0,
   is_super_over INTEGER NOT NULL DEFAULT 0,
-  overs_limit_override INTEGER
+  overs_limit_override INTEGER,
+  total_runs INTEGER DEFAULT 0, 
+  total_wickets INTEGER DEFAULT 0, 
+  total_legal_balls INTEGER DEFAULT 0
 );
 CREATE INDEX IF NOT EXISTS idx_innings_match ON innings(match_id);
 
@@ -87,6 +96,11 @@ CREATE TABLE IF NOT EXISTS users (
   password_hash TEXT NOT NULL,
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
+
+CREATE TABLE IF NOT EXISTS saved_players (
+  id INTEGER PRIMARY KEY AUTOINCREMENT, 
+  name TEXT UNIQUE
+);
 ");
 
 // Admin user setup
@@ -99,4 +113,4 @@ if ($userCount === 0) {
   $stmt->execute([$adminUser, $hash]);
 }
 
-echo "? DB initialized (WAL Mode + Indexes Active).";
+echo "✅ DB initialized (Rollback Journal Mode Active).";

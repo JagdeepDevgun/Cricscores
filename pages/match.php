@@ -296,6 +296,7 @@ $canEdit = $user ? true : false;
   <div style="margin-bottom:15px;"><a href="javascript:history.back()" style="font-weight:700;">← Back</a></div>
 
   <div id="result-banner" class="result-banner" style="display:none;"></div>
+  
   <div id="mom-container"></div>
 
   <div id="meta" class="card" style="text-align:center;">Loading...</div>
@@ -426,8 +427,11 @@ function render() {
 
     const banner = document.getElementById('result-banner');
     const scorer = document.getElementById('scorer-area');
-    banner.style.display = 'none';
+    const momContainer = document.getElementById('mom-container');
     
+    banner.style.display = 'none';
+    momContainer.innerHTML = ''; 
+
     if (m.status === 'completed' || m.status === 'match_tied' || m.status === 'awaiting_super_over') {
         banner.style.display = 'block';
         if (m.status === 'match_tied' || m.status === 'awaiting_super_over' || m.result_type === 'tie') { 
@@ -447,20 +451,30 @@ function render() {
         else if (m.result_text) { banner.textContent = m.result_text; } 
         else { banner.textContent = "MATCH COMPLETED"; }
         
-        let momHtml = '';
+        // MAN OF THE MATCH LOGIC [FIXED]
         if (m.status === 'completed') {
-            if (m.mom_name) momHtml = `<div class="card" style="text-align:center; border-color:#00bcd4;">🌟 <b>Man of the Match</b><br><span style="font-size:18px; color:#2c3e50; font-weight:bold;">${m.mom_name}</span></div>`;
-            else if (CAN_EDIT) {
-                momHtml = `<div class="card" style="text-align:center;"><h3>Select Man of the Match</h3><select id="mom-select">
-                    <option value="">-- Select Player --</option>${matchData.players.map(p => `<option value="${p.id}">${p.name}</option>`).join('')}
-                </select> <button class="btn" onclick="saveMOM()" style="margin-top:10px;">Save</button></div>`;
+            if (m.mom_name) {
+                momContainer.innerHTML = `
+                    <div class="card" style="text-align:center; border:2px solid #00bcd4; background:#f0faff; position:relative;">
+                        <span style="font-size:11px; font-weight:900; color:#00bcd4; text-transform:uppercase;">🌟 Man of the Match</span>
+                        <div style="font-size:20px; font-weight:bold; color:#2c3e50; margin:5px 0;">${m.mom_name}</div>
+                        ${CAN_EDIT ? `<button class="chip" onclick="showMomEditor()" style="border:none; cursor:pointer; background:#eee;">Change</button>` : ''}
+                    </div>`;
+            } else if (CAN_EDIT) {
+                momContainer.innerHTML = `
+                    <div class="card" style="text-align:center; border:2px dashed #ccc;">
+                        <h4 style="margin-bottom:10px;">Select Man of the Match</h4>
+                        <select id="mom-select" style="padding:8px; margin-bottom:10px; width:200px; border-radius:4px; border:1px solid #ccc;">
+                            <option value="">-- Select Player --</option>
+                            ${matchData.players.map(p => `<option value="${p.id}">${p.name}</option>`).join('')}
+                        </select><br>
+                        <button class="btn" onclick="saveMOM()" style="padding:8px 15px; background:#2c3e50; color:white; border-radius:4px;">Save Selection</button>
+                    </div>`;
             }
         }
-        document.getElementById('mom-container').innerHTML = momHtml;
         scorer.style.display = 'block';
     } else {
         scorer.style.display = 'block';
-        document.getElementById('mom-container').innerHTML = '';
     }
 
     currentInnings = null; 
@@ -506,6 +520,35 @@ function render() {
     }
     renderTabs();
     renderCompChart();
+}
+
+function showMomEditor() {
+    matchData.match.mom_name = null; 
+    render();
+}
+
+async function saveMOM() {
+    const pid = document.getElementById('mom-select').value;
+    if(!pid) return alert("Please select a player");
+    
+    const fd = new FormData();
+    fd.append('match_id', matchId);
+    fd.append('player_id', pid); // Must match $_POST['player_id'] in your API
+
+    try {
+        const response = await fetch('../api/match_set_mom.php', {
+            method: 'POST',
+            body: fd
+        });
+        const res = await response.json();
+        if(res.ok) {
+            refresh(); // This re-fetches match_get.php which now has mom_name
+        } else {
+            alert("Error: " + res.error);
+        }
+    } catch(e) {
+        console.error("MOM Save Failed:", e);
+    }
 }
 
 function renderTabs() {
@@ -566,7 +609,6 @@ function renderTabs() {
                 </div>`;
             }
             
-            // Standard Ball
             let ballHtml = '';
             if (c.is_wicket) ballHtml = '<div class="comm-ball wicket">W</div>';
             else if (c.runs_bat == 6) ballHtml = '<div class="comm-ball six">6</div>';
@@ -650,12 +692,11 @@ function updateAutoDetect() {
     if (runsRan % 2 !== 0 && runsRan !== 4 && runsRan !== 6) { let temp = s; s = ns; ns = temp; }
     if ((last.extras_type === 'b' || last.extras_type === 'lb') && parseInt(last.extras_runs) % 2 !== 0) { let temp = s; s = ns; ns = temp; }
     
-    // Updated Logic: Who was out?
     if (last.is_wicket == 1) { 
         const outId = last.wicket_player_out_id;
         if(outId == s) { s = ''; showBatsmanModal(batPlayers, ns); }
         else if(outId == ns) { ns = ''; showBatsmanModal(batPlayers, s); }
-        else { s = ''; showBatsmanModal(batPlayers, ns); } // Fallback
+        else { s = ''; showBatsmanModal(batPlayers, ns); } 
     }
     
     let legal = currentInnings.summary.legal_balls;
@@ -668,7 +709,6 @@ function updateAutoDetect() {
     lastProcessedBallId = thisBallId;
 }
 
-/* SWAP FUNCTION */
 function swapBatters() {
     var s = document.getElementById('striker');
     var ns = document.getElementById('nonstriker');
@@ -677,7 +717,6 @@ function swapBatters() {
     ns.value = tmp;
 }
 
-/* WICKET MODAL LOGIC */
 function openWicketModal() {
   if(!validateSel()) return;
   wType=''; wWho='';
@@ -698,18 +737,13 @@ function selWicket(type) {
   if(type === 'run out') {
      document.getElementById('wicket-title').innerText = "Run Out: Who?";
      document.getElementById('wicket-step-1').style.display = 'none';
-     
-     // FIX: Show names on buttons with better style
      const sName = document.querySelector('#striker option:checked').text;
      const nsName = document.querySelector('#nonstriker option:checked').text;
-     
-     // Using display:block on span to put name on new line, removing parent uppercase
      document.getElementById('btn-out-striker').innerHTML = `STRIKER<span style="display:block; font-size:11px; font-weight:bold; text-transform:none; margin-top:5px; color:#e91e63;">${sName}</span>`;
      document.getElementById('btn-out-nonstriker').innerHTML = `NON-STRIKER<span style="display:block; font-size:11px; font-weight:bold; text-transform:none; margin-top:5px; color:#e91e63;">${nsName}</span>`;
-     
      document.getElementById('wicket-step-2').style.display = 'grid';
   } else {
-     wWho = 'striker'; // Default
+     wWho = 'striker'; 
      showRunsStep();
   }
 }
@@ -735,38 +769,28 @@ async function submitWicket() {
   const runs = parseInt(document.getElementById('wicket-runs').value || 0);
   const isWd = document.getElementById('wicket-wd').checked;
   const isNb = document.getElementById('wicket-nb').checked;
-  
   let exType = ''; let exRuns = 0;
   if(isWd) { exType='wd'; exRuns=1; }
   else if(isNb) { exType='nb'; exRuns=1; }
-  
   const fd = new FormData();
   fd.append('innings_id', currentInnings.id);
   fd.append('runs_bat', runs);
   fd.append('extras_runs', exRuns);
   if(exType) fd.append('extras_type', exType);
-  
   fd.append('is_wicket', 1);
   fd.append('wicket_type', wType);
-  
   const sId = document.getElementById('striker').value;
   const nsId = document.getElementById('nonstriker').value;
-  
   fd.append('striker_id', sId);
   fd.append('non_striker_id', nsId);
   fd.append('bowler_id', document.getElementById('bowler').value);
-  
-  // Handle ID of who is out
   let outId = sId;
   if(wWho === 'non_striker') outId = nsId;
   fd.append('wicket_player_out_id', outId);
-  
   await postBall(fd);
   closeWicketModal();
 }
 
-/* API Calls & Helpers */
-async function saveMOM() { const pid = document.getElementById('mom-select').value; if(pid) { await fetch('../api/match_set_mom.php', {method:'POST', body:new URLSearchParams({match_id:matchId, player_id:pid})}); location.reload(); } }
 async function startSuperOver() { if(confirm("Start Super Over?")) { await fetch('../api/super_over_start.php', {method:'POST', body:new URLSearchParams({match_id:matchId})}); location.reload(); } }
 async function endAsTie() {
     if(!confirm("End Match as Tie?")) return;
@@ -788,8 +812,6 @@ async function postBall(fd) { await fetch('../api/ball_add.php', {method:'POST',
 async function undoBall() { await fetch('../api/ball_undo.php', {method:'POST', body:new URLSearchParams({innings_id:currentInnings.id})}); refresh(); }
 async function endInnings() { if(confirm('End Innings?')) { await fetch('../api/innings_complete.php', {method:'POST', body:new URLSearchParams({innings_id:currentInnings.id})}); refresh(); } }
 async function doLogout(){ await fetch('../api/logout.php',{method:'POST'}); location.href='../index.php'; }
-
-/* EDIT BALL LOGIC */
 function openEditBall(id, runs, exType, exRuns, wType) {
     if(!CAN_EDIT) return;
     document.getElementById('edit-ball-id').value = id;
@@ -799,16 +821,13 @@ function openEditBall(id, runs, exType, exRuns, wType) {
     document.getElementById('edit-wicket-type').value = wType || '';
     document.getElementById('modal-edit-ball').style.display = 'flex';
 }
-
 function setEditRun(r) { document.getElementById('edit-runs-input').value = r; }
-
 async function submitEditBall() {
     const fd = new FormData();
     fd.append('ball_id', document.getElementById('edit-ball-id').value);
     fd.append('runs_bat', document.getElementById('edit-runs-input').value);
     fd.append('extras_type', document.getElementById('edit-extras-type').value);
     fd.append('extras_runs', document.getElementById('edit-extras-runs').value);
-    
     const wType = document.getElementById('edit-wicket-type').value;
     if(wType) {
         fd.append('is_wicket', 1);
@@ -816,12 +835,10 @@ async function submitEditBall() {
     } else {
         fd.append('is_wicket', 0);
     }
-    
     await fetch('../api/ball_edit.php', { method:'POST', body:fd });
     document.getElementById('modal-edit-ball').style.display = 'none';
     refresh();
 }
-
 refresh();
 const refreshRate = 5000;
 refreshInterval = setInterval(refresh, refreshRate);

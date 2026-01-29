@@ -202,7 +202,6 @@ $defOvers = (int)($tour['default_overs'] ?? 20);
     <div class="btnrow">
       <?php if ($user): ?>
         <button type="button" onclick="generateFixtures()">Generate Fixtures</button>
-        <a class="btnlink" href="../api/backup.php" target="_blank" style="text-align:center;">Backup Data</a>
         <button type="button" class="danger" onclick="deleteTournament()">Delete Tournament</button>
       <?php endif; ?>
       <a class="btnlink" href="points.php?id=<?= $id ?>">Points Table</a>
